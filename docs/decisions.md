@@ -26,3 +26,12 @@
 - 배경: MVP 일정 내 빠른 검증 필요
 - 결정: UI E2E 대신 유틸 로직 중심 Vitest 샘플 테스트 적용
 - 영향: 핵심 deterministic/중복 완료 방지/히스토리 길이 규칙을 자동 검증
+
+### D-006: 서버 전환 정책은 Import -> Dual-write -> Server-only
+- 배경: 기존 `localStorage` 데이터를 보존하면서 서버 저장으로 안전하게 전환 필요
+- 결정: `POST /sync/import`로 초기 이관 후 Phase C에서 dual-write를 운영하고, 안정화 지표 충족 시 Phase D(server-only)로 승격
+- 영향: 전환 중 데이터 유실/불일치 위험을 낮추고, 지표 기반으로 단계 승격 가능
+- Phase C -> D 승격 조건
+- `sync/import` 성공률 99% 이상
+- 서버-로컬 mismatch 0.5% 미만
+- `PUT /records/{date}` p95 300ms 이하
