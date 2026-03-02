@@ -13,13 +13,20 @@ const isActive = (path: string) => {
     <header class="top-nav">
       <NuxtLink to="/" class="brand" aria-label="홈으로 이동">healing-site</NuxtLink>
       <nav aria-label="주요 메뉴" class="menu">
-        <NuxtLink to="/" class="menu-link" :class="{ active: isActive('/') }" aria-label="랜딩 페이지">
+        <NuxtLink
+          to="/"
+          class="menu-link"
+          :class="{ active: isActive('/') }"
+          :aria-current="isActive('/') ? 'page' : undefined"
+          aria-label="랜딩 페이지"
+        >
           홈
         </NuxtLink>
         <NuxtLink
           to="/today"
           class="menu-link"
           :class="{ active: isActive('/today') }"
+          :aria-current="isActive('/today') ? 'page' : undefined"
           aria-label="오늘의 미션 페이지"
         >
           오늘
@@ -28,6 +35,7 @@ const isActive = (path: string) => {
           to="/history"
           class="menu-link"
           :class="{ active: isActive('/history') }"
+          :aria-current="isActive('/history') ? 'page' : undefined"
           aria-label="기록 페이지"
         >
           기록

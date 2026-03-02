@@ -244,6 +244,37 @@ button {
   margin-top: 0.25rem;
 }
 
+.burnout-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.burnout-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.burnout-toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.burnout-toggle-label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.burnout-toggle-input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .mission-card {
   display: flex;
   flex-direction: column;
@@ -290,6 +321,12 @@ button {
 
 .status-pending {
   color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breathing-visual.is-running {
+    animation: none;
+  }
 }
 
 @media (min-width: 768px) {
