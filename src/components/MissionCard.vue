@@ -11,11 +11,13 @@ defineProps<{
 const emit = defineEmits<{
   complete: []
 }>()
+
+const sectionTitleId = 'mission-card-title'
 </script>
 
 <template>
-  <section class="card mission-card" aria-label="오늘의 미션 카드">
-    <h2 class="section-title">오늘의 미션 1개</h2>
+  <section class="card mission-card" :aria-labelledby="sectionTitleId">
+    <h2 :id="sectionTitleId" class="section-title">오늘의 미션 1개</h2>
     <h3 class="mission-title">{{ mission.title }}</h3>
     <p class="section-description">{{ mission.description }}</p>
 
@@ -31,7 +33,7 @@ const emit = defineEmits<{
       {{ completed ? '오늘 기록 완료' : '완료로 체크' }}
     </button>
 
-    <p class="praise-text" aria-live="polite">{{ praiseMessage }}</p>
+    <p class="praise-text" role="status" aria-live="polite">{{ praiseMessage }}</p>
     <p class="meta-text">누적 완료 {{ totalCompleted }}회</p>
   </section>
 </template>

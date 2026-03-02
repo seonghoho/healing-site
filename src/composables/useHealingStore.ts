@@ -5,26 +5,55 @@ import { getDateKey, pickMissionByDate } from '~/utils/mission'
 export function useHealingStore() {
   const state = useState<HealingState>('healing-state', () => createDefaultHealingState())
   const hydrated = useState<boolean>('healing-state-hydrated', () => false)
+  const storageListenerAttached = useState<boolean>('healing-state-storage-listener', () => false)
 
-  const loadFromStorage = () => {
-    if (!import.meta.client || hydrated.value) {
-      return
-    }
-
-    const rawValue = localStorage.getItem(STORAGE_KEY)
+  const parseStoredState = (rawValue: string | null): HealingState => {
     if (!rawValue) {
-      hydrated.value = true
-      return
+      return createDefaultHealingState()
     }
 
     try {
-      const parsed = JSON.parse(rawValue)
-      state.value = normalizeHealingState(parsed)
+      return normalizeHealingState(JSON.parse(rawValue))
     } catch {
-      state.value = createDefaultHealingState()
+      return createDefaultHealingState()
+    }
+  }
+
+  const syncFromStorage = () => {
+    if (!import.meta.client) {
+      return
     }
 
+    state.value = parseStoredState(localStorage.getItem(STORAGE_KEY))
     hydrated.value = true
+  }
+
+  const ensureClientReady = () => {
+    if (!import.meta.client) {
+      return
+    }
+
+    if (!hydrated.value) {
+      syncFromStorage()
+    }
+
+    if (storageListenerAttached.value) {
+      return
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (event.storageArea !== localStorage) {
+        return
+      }
+
+      if (event.key !== null && event.key !== STORAGE_KEY) {
+        return
+      }
+
+      syncFromStorage()
+    })
+
+    storageListenerAttached.value = true
   }
 
   const persist = () => {
@@ -33,15 +62,16 @@ export function useHealingStore() {
     }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.value))
+    hydrated.value = true
   }
 
   const getTodayMission = (): Mission => {
-    loadFromStorage()
+    ensureClientReady()
     return pickMissionByDate(getDateKey())
   }
 
   const completeToday = (): CompleteResult => {
-    loadFromStorage()
+    ensureClientReady()
     const today = getDateKey()
     const mission = pickMissionByDate(today)
 
@@ -54,7 +84,7 @@ export function useHealingStore() {
   }
 
   const getHistory = (days = 30): HistoryDay[] => {
-    loadFromStorage()
+    ensureClientReady()
     return buildHistory(state.value, days)
   }
 
@@ -68,12 +98,12 @@ export function useHealingStore() {
   }
 
   const totalCompleted = computed(() => {
-    loadFromStorage()
+    ensureClientReady()
     return state.value.totalCompleted
   })
 
   const isTodayCompleted = computed(() => {
-    loadFromStorage()
+    ensureClientReady()
     return Boolean(state.value.records[getDateKey()])
   })
 
