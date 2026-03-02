@@ -1,98 +1,132 @@
-# 09. API Spec (Server Transition Draft)
+# 09. API Spec (v1 Draft)
 
-## 목적/범위
-- 목적: localStorage 기반 MVP를 서버 저장 구조로 전환할 때의 API 계약을 선행 정의
-- 범위: 미션 조회, 일일 완료 기록 upsert, 히스토리 조회, 동기화/마이그레이션 상태 확인
-- 비범위(후속): 소셜 로그인, 멀티 디바이스 충돌 UI, 관리자 대시보드
+## 목적
+- MVP `localStorage` 저장에서 서버 저장으로 전환하기 위한 v1 API 계약 정의
+- 로그인 없이 시작 가능한 `anon_id` 전략과 로그인 전환 시 데이터 연속성을 보장
 
-## 버전/기본 규칙
+## 범위 (v1)
+- `GET /missions/today`
+- `POST /progress/complete`
+- `GET /history`
+
+## 버전 및 공통 규칙
 - Base URL: `/api/v1`
-- Content-Type: `application/json; charset=utf-8`
-- 시간 표준: ISO-8601 UTC (`2026-03-01T09:20:00.000Z`)
-- 날짜 표준: `YYYY-MM-DD`
-- 멱등성:
-  - `PUT /records/{date}`는 날짜 단위 upsert로 멱등 처리
-  - 동일 payload 재전송 시 동일 응답(200)
+- Content-Type: `application/json`
+- 날짜: `YYYY-MM-DD` (사용자 로컬 날짜 기준)
+- 시간: ISO 8601 UTC (`2026-03-02T08:30:00.000Z`)
+- 공통 헤더
+  - `X-Request-Id` (optional): 요청 추적 ID
+  - `X-Anon-Id` (로그인 전 필수): UUIDv4
 
-## 인증 모델 (MVP 이후)
-- 1단계(전환 초기): 익명 디바이스 토큰(`X-Device-Id`) 허용
-- 2단계(안정화): OAuth/OIDC 기반 사용자 토큰 + 디바이스 보조 식별자
-- 서버는 `deviceId + date`를 최소 중복 방지 단위로 사용
+## `anon_id` 발급/보관 전략 (확정)
+- 발급
+  - 앱 첫 실행 시 `crypto.randomUUID()`로 `anon_id` 1회 생성
+  - 생성 값은 클라이언트에서만 원문 보관
+- 보관
+  - 로컬 키: `localStorage['healing-site:anon-id']`
+  - 값이 없거나 UUID 검증 실패 시 새 값 재발급 후 덮어씀
+- 전송
+  - 로그인 전 모든 API 요청에 `X-Anon-Id`로 전달
+  - 서버는 원문 미저장, 해시(`device_key_hash`)만 저장
+- 로그인 전환
+  - 로그인 도입 시 `Authorization: Bearer <token>` + `X-Anon-Id` 동시 허용
+  - 서버는 `X-Anon-Id` 기반 기록을 계정으로 병합 후 계정 식별자로 고정
 
-## 엔터티 요약
+## 서버 전환 업로드/동기화 시나리오
+1. 부팅 시 로컬 `healing-site:v1`과 `healing-site:anon-id` 로드
+2. Phase B(import)에서 로컬 `records`를 날짜 오름차순으로 `POST /progress/complete` 업로드
+3. 업로드 후 `GET /history`로 서버 건수와 로컬 건수 비교
+4. 검증 성공 시 Phase C(dual-write): 완료 시 로컬+서버 동시 저장
+5. 운영 지표 충족 시 Phase D(server-only): 서버 우선 저장/조회로 전환
 
-### Mission
-```json
-{
-  "id": "breath-3",
-  "title": "3분 호흡",
-  "description": "눈을 감고 호흡에 집중합니다.",
-  "estimatedMinutes": 3,
-  "tags": ["breathing", "beginner"]
-}
+재시도 규칙
+- `POST /progress/complete`는 `actor_id + date` 기준 idempotent upsert
+- 네트워크 실패 시 동일 payload 재전송 허용
+
+## 엔드포인트
+
+### 1) 오늘의 미션 조회
+- `GET /missions/today?date=YYYY-MM-DD`
+- 설명: 특정 날짜(미지정 시 오늘)의 deterministic 미션 1건 반환
+
+요청 예시
+```http
+GET /api/v1/missions/today?date=2026-03-02
+X-Anon-Id: 75ac5f95-4fcb-4f3f-83f7-3c67f0c4b4a8
+X-Request-Id: req_9fda
 ```
 
-### HealingRecord
+응답 예시 (200)
 ```json
 {
-  "date": "2026-03-01",
-  "missionId": "breath-3",
-  "completedAt": "2026-03-01T09:20:00.000Z",
-  "source": "server"
-}
-```
-
-## API 상세
-
-### 1) 오늘 미션 조회
-`GET /missions/today?date=2026-03-01`
-
-- 설명: deterministic 규칙 기반으로 특정 날짜의 미션 반환
-- Query:
-  - `date`(optional): 미지정 시 서버의 오늘 날짜
-- Response 200
-```json
-{
-  "date": "2026-03-01",
+  "date": "2026-03-02",
   "mission": {
     "id": "breath-3",
-    "title": "3분 호흡",
-    "description": "눈을 감고 호흡에 집중합니다.",
+    "title": "3분 호흡 정리",
+    "description": "천천히 들이쉬고 내쉬며 호흡에 집중하세요.",
     "estimatedMinutes": 3,
-    "tags": ["breathing", "beginner"]
-  }
+    "tags": ["breathing", "focus"]
+  },
+  "requestId": "req_9fda"
 }
 ```
 
-### 2) 일일 완료 기록 저장(멱등 upsert)
-`PUT /records/2026-03-01`
+상태 코드
+- `200 OK`: 정상 조회
+- `400 Bad Request`: 날짜 형식 오류
+- `404 Not Found`: 활성 미션 없음
+- `429 Too Many Requests`: 요청 제한 초과
+- `500 Internal Server Error`: 서버 오류
 
-- 설명: 날짜당 1건 정책으로 완료 기록 생성 또는 교체
-- Request
+### 2) 완료 기록 저장 (idempotent upsert)
+- `POST /progress/complete`
+- 설명: `actor_id(anon/login) + date`를 unique key로 완료 기록 생성/갱신
+
+요청 예시
+```http
+POST /api/v1/progress/complete
+X-Anon-Id: 75ac5f95-4fcb-4f3f-83f7-3c67f0c4b4a8
+Content-Type: application/json
+
+{
+  "schemaVersion": 1,
+  "date": "2026-03-02",
+  "missionId": "breath-3",
+  "completedAt": "2026-03-02T08:30:00.000Z",
+  "source": "web"
+}
+```
+
+응답 예시 (200)
 ```json
 {
+  "date": "2026-03-02",
   "missionId": "breath-3",
-  "completedAt": "2026-03-01T09:20:00.000Z"
+  "completedAt": "2026-03-02T08:30:00.000Z",
+  "updated": true,
+  "requestId": "req_9fda"
 }
 ```
-- Response 200
-```json
-{
-  "date": "2026-03-01",
-  "missionId": "breath-3",
-  "completedAt": "2026-03-01T09:20:00.000Z",
-  "upserted": true
-}
+
+상태 코드
+- `200 OK`: 생성/갱신 성공 (idempotent)
+- `400 Bad Request`: 필수 필드 누락/형식 오류
+- `401 Unauthorized`: 로그인 모드에서 토큰 오류
+- `409 Conflict`: 동일 날짜에 상이한 `missionId` 충돌
+- `422 Unprocessable Entity`: 지원하지 않는 `schemaVersion`
+- `500 Internal Server Error`: 서버 오류
+
+### 3) 히스토리 조회
+- `GET /history?from=YYYY-MM-DD&to=YYYY-MM-DD`
+- 설명: 기간 내 완료 기록과 요약 반환
+
+요청 예시
+```http
+GET /api/v1/history?from=2026-02-02&to=2026-03-02
+X-Anon-Id: 75ac5f95-4fcb-4f3f-83f7-3c67f0c4b4a8
 ```
-- Error
-  - 400: 날짜 포맷/본문 검증 실패
-  - 409: 미션 정책 위반(예: 존재하지 않는 missionId)
 
-### 3) 최근 기록 조회
-`GET /records?from=2026-02-01&to=2026-03-01&limit=30`
-
-- 설명: 기간 기반 완료 기록 조회
-- Response 200
+응답 예시 (200)
 ```json
 {
   "items": [
@@ -100,53 +134,26 @@
       "date": "2026-03-01",
       "missionId": "breath-3",
       "completedAt": "2026-03-01T09:20:00.000Z"
+    },
+    {
+      "date": "2026-03-02",
+      "missionId": "walk-10",
+      "completedAt": "2026-03-02T10:00:00.000Z"
     }
   ],
-  "total": 1
-}
-```
-
-### 4) 동기화 상태 조회
-`GET /sync/status`
-
-- 설명: 클라이언트 전환 단계에서 로컬->서버 마이그레이션 상태 확인
-- Response 200
-```json
-{
-  "migrationPhase": "dual-write",
-  "lastSyncedAt": "2026-03-01T09:21:00.000Z",
-  "recordCount": 12
-}
-```
-
-### 5) 초기 업로드(로컬 일괄 이관)
-`POST /sync/import`
-
-- 설명: localStorage v1 데이터를 서버로 일괄 전송 (최초 1회 권장)
-- Request
-```json
-{
-  "version": 1,
-  "totalCompleted": 12,
-  "records": {
-    "2026-03-01": {
-      "missionId": "breath-3",
-      "completedAt": "2026-03-01T09:20:00.000Z"
-    }
+  "summary": {
+    "totalCompleted": 2
   }
 }
 ```
-- Response 202
-```json
-{
-  "accepted": true,
-  "imported": 12,
-  "skipped": 0,
-  "migrationPhase": "dual-write"
-}
-```
 
-## 오류 응답 포맷
+상태 코드
+- `200 OK`: 정상 조회
+- `400 Bad Request`: `from/to` 형식 오류 또는 범위 오류
+- `401 Unauthorized`: 로그인 모드에서 토큰 오류
+- `500 Internal Server Error`: 서버 오류
+
+## 공통 에러 포맷
 ```json
 {
   "error": {
@@ -155,24 +162,20 @@
     "details": {
       "field": "date"
     }
-  }
+  },
+  "requestId": "req_9fda"
 }
 ```
 
-## 전환 단계 (MVP 이후)
-1. **Phase A - Local only (현행)**
-   - 읽기/쓰기 모두 localStorage
-2. **Phase B - Import + Dual Write**
-   - 앱 시작 시 `POST /sync/import` 1회 시도
-   - 기록 저장은 로컬 + 서버 동시 쓰기
-3. **Phase C - Server Read Primary**
-   - 히스토리/누적 수치는 서버 읽기 우선, 로컬은 fallback
-4. **Phase D - Server only**
-   - 로컬 저장 중단, 캐시는 성능 용도만 유지
+## 표준 에러 코드
+- `VALIDATION_ERROR`: 입력값 검증 실패
+- `UNAUTHORIZED`: 인증 실패
+- `MISSION_CONFLICT`: 동일 날짜 `missionId` 충돌
+- `UNSUPPORTED_SCHEMA_VERSION`: 지원하지 않는 payload 버전
+- `INTERNAL_ERROR`: 처리 중 예외
 
-## 전환 완료 기준
-- 최근 30일 활성 사용자 기준:
-  - `sync/import` 성공률 99% 이상
-  - 서버-로컬 총 완료 수 mismatch 0.5% 미만
-  - `PUT /records/{date}` 95p 응답시간 300ms 이하
-- 기준 충족 후 Phase C -> D 승격
+## 전환 단계 연계
+- Phase A: Local-only (`localStorage` read/write)
+- Phase B: Import-only (로컬 기록 서버 적재)
+- Phase C: Dual-write (로컬+서버 동시 쓰기)
+- Phase D: Server-only (서버 단일 read/write)
