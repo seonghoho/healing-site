@@ -71,11 +71,20 @@ onBeforeUnmount(() => {
     <h2 class="section-title">60초 호흡</h2>
     <p class="section-description">{{ breathingGuide }}에 맞춰 천천히 숨을 이어가 보세요.</p>
 
-    <div class="breathing-visual" :class="{ 'is-running': running }" aria-hidden="true">
+    <div
+      class="breathing-visual"
+      :class="{ 'is-running': running }"
+      role="progressbar"
+      aria-label="호흡 타이머 진행률"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      :aria-valuenow="progressPercent"
+      :aria-valuetext="`${progressPercent}% 완료, ${secondsLeft}초 남음`"
+    >
       <span>{{ secondsLeft }}초</span>
     </div>
 
-    <p class="progress-text" aria-live="polite">진행 {{ progressPercent }}%</p>
+    <p class="progress-text" role="status" aria-live="polite">진행 {{ progressPercent }}%</p>
 
     <div class="button-row">
       <button

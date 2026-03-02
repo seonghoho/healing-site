@@ -4,11 +4,13 @@ import type { HistoryDay } from '~/types/healing'
 defineProps<{
   items: HistoryDay[]
 }>()
+
+const sectionTitleId = 'history-list-title'
 </script>
 
 <template>
-  <section class="card" aria-label="최근 기록 목록">
-    <h2 class="section-title">최근 30일 기록</h2>
+  <section class="card" :aria-labelledby="sectionTitleId">
+    <h2 :id="sectionTitleId" class="section-title">최근 30일 기록</h2>
     <ul class="history-list">
       <li v-for="entry in items" :key="entry.date" class="history-item">
         <div>

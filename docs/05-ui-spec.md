@@ -1,4 +1,4 @@
-# 05. UI Spec (Text Wireframe)
+# 05. UI Spec (Structure & States)
 
 ## 공통 카피 원칙
 - 페이지 제목은 1문장, 설명은 1~2문장으로 유지
