@@ -22,10 +22,26 @@
 - 미션 난이도/카테고리 필터를 제공한다.
 - 다국어 지원을 제공한다.
 
-## 성공 지표 (MVP, 2~3개)
-1. 핵심 여정 완료율 95% 이상: `/ -> /today -> 완료 -> /history`를 오류 없이 수행한다.
-2. 저장 유지율 100%: 당일 완료 후 새로고침/재진입 시 완료 상태가 유지된다.
-3. 즉시 피드백 노출률 100%: 완료 클릭 후 1초 이내 칭찬 메시지 또는 상태 변화가 표시된다.
+## 성공 지표 (MVP, analytics-lite)
+1. Day1 미션 완료율
+   - 정의: 신규 사용자가 첫 방문일(Day1)에 오늘의 미션을 1회 이상 완료한 비율.
+   - 측정 방법: 분자 `mission_complete`(is_day1=true) 발생 사용자 수 / 분모 `session_start`(is_day1=true) 발생 사용자 수.
+2. 7일 내 재방문율
+   - 정의: Day1 이후 7일 이내(D+1~D+7)에 1회 이상 재방문한 사용자 비율.
+   - 측정 방법: 분자 D+1~D+7 기간 `session_start`가 1회 이상 있는 사용자 수 / 분모 Day1 사용자 수.
+3. 호흡(60초) 시작/완료율
+   - 정의: 60초 호흡을 시작한 사용자 중 완료까지 도달한 비율.
+   - 측정 방법: 분자 `breathing_complete` 발생 사용자 수 / 분모 `breathing_start` 발생 사용자 수.
+
+## analytics-lite 이벤트 정의
+- 수집 원칙: 외부 분석 도구 없이 브라우저 `localStorage` 기반 익명 이벤트 로그로 측정한다.
+- 사용자 식별: 개인 식별정보 없이 로컬 생성 `anonymous_user_id`(UUID)만 사용한다.
+- 공통 필드: `event_name`, `anonymous_user_id`, `occurred_at`, `date_key`, `is_day1`.
+- 이벤트 목록:
+  - `session_start`: 앱 최초 진입 및 재진입 시 기록
+  - `breathing_start`: 60초 호흡 시작 버튼 클릭 시 기록
+  - `breathing_complete`: 60초 호흡 완료 시 기록
+  - `mission_complete`: 오늘의 미션 완료 체크 시 기록
 
 ## 비기능 요구사항
 
