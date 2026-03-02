@@ -76,3 +76,20 @@
 - 반복 애니메이션은 호흡 타이머 등 기능적 요소에 한해 사용한다.
 - 이동 거리는 최대 `8px`, 확대/축소는 `0.96 ~ 1.02` 범위로 제한한다.
 - `prefers-reduced-motion: reduce`에서는 애니메이션 시간을 `0ms`로 축소한다.
+
+### Breathing Animation Tokens
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--breath-cycle-default` | `4000ms` | 기본 호흡 1사이클 |
+| `--breath-cycle-burnout` | `6000ms` | 번아웃 저강도 1사이클 |
+| `--breath-scale-min` | `0.98` | 호흡 원형 최소 스케일 |
+| `--breath-scale-max` | `1.02` | 호흡 원형 최대 스케일 |
+| `--breath-idle-opacity` | `0.88` | 대기 상태 |
+| `--breath-active-opacity` | `1` | 활성 상태 |
+| `--breath-pause-gap` | `400ms` | 사이클 간 정지 시간 |
+
+### Breathing Motion Rules
+- 숨쉬기 애니메이션은 `scale` + `opacity` 조합만 허용한다.
+- 번아웃 모드에서는 `--breath-cycle-burnout`을 사용하고 스케일 변화폭을 `1.00 ~ 1.02`로 축소한다.
+- 호흡 애니메이션과 배경 장식 애니메이션을 동시에 반복 재생하지 않는다.
+- 화면 비활성(탭 전환, 백그라운드) 시 애니메이션을 일시정지한다.
