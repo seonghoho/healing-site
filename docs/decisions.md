@@ -31,7 +31,8 @@
 - 배경: 기존 `localStorage` 데이터를 보존하면서 서버 저장으로 안전하게 전환 필요
 - 결정: `POST /sync/import`로 초기 이관 후 Phase C에서 dual-write를 운영하고, 안정화 지표 충족 시 Phase D(server-only)로 승격
 - 영향: 전환 중 데이터 유실/불일치 위험을 낮추고, 지표 기반으로 단계 승격 가능
-- Phase C -> D 승격 조건
-- `sync/import` 성공률 99% 이상
-- 서버-로컬 mismatch 0.5% 미만
-- `PUT /records/{date}` p95 300ms 이하
+
+### D-007: 인증은 "익명 device id 시작 + 추후 계정 링크"로 단계 도입
+- 배경: 로그인 장벽 없이 빠르게 시작하면서 장기적으로 멀티 디바이스/계정 연동을 지원해야 함
+- 결정: 초기에는 `X-Device-Id` 기반 익명 사용자(`POST /users/anon`)를 사용하고, 로그인 도입 시 `POST /users/link`로 데이터 병합
+- 영향: 무인증 MVP 진입성을 유지하면서도 인증 전환 시 데이터 이관 경로를 표준화
