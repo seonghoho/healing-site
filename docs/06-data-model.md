@@ -140,7 +140,7 @@ interface HistoryDay {
 | `records[date]` key | `date` | `record_date` | `YYYY-MM-DD` 검증 후 `date` 타입 저장 |
 | `records[date].missionId` | `missionId` | `mission_id` | 문자열 그대로 저장 |
 | `records[date].completedAt` | `completedAt` | `completed_at` | ISO-8601 UTC 검증 후 저장 |
-| `anon_id` (별도 키) | `X-Anon-Id` 헤더 | `devices.device_key_hash` + `user_devices` | 원문 미저장, 해시 후 매핑 |
+| `localStorage['healing-site:anon-id']` | `X-Anon-Id` 헤더 | `devices.device_key_hash` + `user_devices` | 원문 미저장, 해시 후 매핑 |
 | `totalCompleted` | (전송 안 함) | (집계 계산) | `COUNT(*)`로 계산 |
 
 ## 마이그레이션 절차 (local -> server)

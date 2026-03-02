@@ -1,10 +1,10 @@
-# 09. API Spec (Draft)
+# 09. API Spec (v1 Draft)
 
 ## 목적
-- MVP `localStorage` 저장에서 서버 저장으로 전환하기 위한 1차 API 계약 정의
-- 로그인 없이 시작 가능한 `anon_id` 전략과 추후 로그인 전환 경로를 함께 명시
+- MVP `localStorage` 저장에서 서버 저장으로 전환하기 위한 v1 API 계약 정의
+- 로그인 없이 시작 가능한 `anon_id` 전략과 로그인 전환 시 데이터 연속성을 보장
 
-## 범위 (1차)
+## 범위 (v1)
 - `GET /missions/today`
 - `POST /progress/complete`
 - `GET /history`
@@ -15,18 +15,33 @@
 - 날짜: `YYYY-MM-DD` (사용자 로컬 날짜 기준)
 - 시간: ISO 8601 UTC (`2026-03-02T08:30:00.000Z`)
 - 공통 헤더
-  - `X-Request-Id` (optional): 클라이언트 요청 추적 ID
-  - `X-Anon-Id` (로그인 전 필수): UUIDv4 권장
+  - `X-Request-Id` (optional): 요청 추적 ID
+  - `X-Anon-Id` (로그인 전 필수): UUIDv4
 
-## 식별/인증 전략 (`anon_id` -> 로그인)
-- 로그인 전
-  - 클라이언트는 최초 실행 시 `anon_id`를 생성하고 로컬에 저장
-  - 모든 API 요청에 `X-Anon-Id`를 포함
-  - 서버는 `X-Anon-Id` 원문을 저장하지 않고 해시(`device_key_hash`)로만 저장
-- 로그인 도입 후
-  - `Authorization: Bearer <token>`을 기본 인증으로 사용
-  - 전환 기간에는 `Authorization` + `X-Anon-Id`를 함께 허용
-  - 서버는 `X-Anon-Id`로 축적된 기록을 로그인 계정으로 병합하고 이후 `actor_id`를 계정 기준으로 고정
+## `anon_id` 발급/보관 전략 (확정)
+- 발급
+  - 앱 첫 실행 시 `crypto.randomUUID()`로 `anon_id` 1회 생성
+  - 생성 값은 클라이언트에서만 원문 보관
+- 보관
+  - 로컬 키: `localStorage['healing-site:anon-id']`
+  - 값이 없거나 UUID 검증 실패 시 새 값 재발급 후 덮어씀
+- 전송
+  - 로그인 전 모든 API 요청에 `X-Anon-Id`로 전달
+  - 서버는 원문 미저장, 해시(`device_key_hash`)만 저장
+- 로그인 전환
+  - 로그인 도입 시 `Authorization: Bearer <token>` + `X-Anon-Id` 동시 허용
+  - 서버는 `X-Anon-Id` 기반 기록을 계정으로 병합 후 계정 식별자로 고정
+
+## 서버 전환 업로드/동기화 시나리오
+1. 부팅 시 로컬 `healing-site:v1`과 `healing-site:anon-id` 로드
+2. Phase B(import)에서 로컬 `records`를 날짜 오름차순으로 `POST /progress/complete` 업로드
+3. 업로드 후 `GET /history`로 서버 건수와 로컬 건수 비교
+4. 검증 성공 시 Phase C(dual-write): 완료 시 로컬+서버 동시 저장
+5. 운영 지표 충족 시 Phase D(server-only): 서버 우선 저장/조회로 전환
+
+재시도 규칙
+- `POST /progress/complete`는 `actor_id + date` 기준 idempotent upsert
+- 네트워크 실패 시 동일 payload 재전송 허용
 
 ## 엔드포인트
 
@@ -67,8 +82,12 @@ X-Request-Id: req_9fda
 - `POST /progress/complete`
 - 설명: `actor_id(anon/login) + date`를 unique key로 완료 기록 생성/갱신
 
-요청 본문 예시
-```json
+요청 예시
+```http
+POST /api/v1/progress/complete
+X-Anon-Id: 75ac5f95-4fcb-4f3f-83f7-3c67f0c4b4a8
+Content-Type: application/json
+
 {
   "schemaVersion": 1,
   "date": "2026-03-02",
