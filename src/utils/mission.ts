@@ -59,12 +59,26 @@ export const MISSIONS: Mission[] = [
   }
 ]
 
+const LOW_INTENSITY_MISSION_ID_SET = new Set([
+  'breath-3',
+  'water',
+  'sunlight',
+  'eye-break',
+  'self-kindness'
+])
+
+export const LOW_INTENSITY_MISSIONS: Mission[] = MISSIONS.filter((mission) =>
+  LOW_INTENSITY_MISSION_ID_SET.has(mission.id)
+)
+
 const PRAISE_MESSAGES = [
   '좋아요. 오늘의 작은 회복이 기록되었어요.',
   '충분히 잘 해냈어요. 지금의 속도가 아주 좋아요.',
   '한 걸음이 쌓이고 있어요. 오늘도 마음을 챙겼네요.',
   '지금 이 선택이 내일의 여유를 만들어줘요.'
 ]
+
+const BURNOUT_PRAISE_MESSAGE = '좋아요. 오늘의 작은 회복이 기록되었어요.'
 
 export function getDateKey(date: Date = new Date()): string {
   const year = date.getFullYear()
@@ -91,11 +105,27 @@ export function pickMissionByDate(dateKey: string, missionPool: Mission[] = MISS
   return missionPool[missionIndex]
 }
 
+export function getMissionPoolByMode(isBurnoutMode: boolean): Mission[] {
+  if (isBurnoutMode && LOW_INTENSITY_MISSIONS.length > 0) {
+    return LOW_INTENSITY_MISSIONS
+  }
+
+  return MISSIONS
+}
+
+export function pickMissionByMode(dateKey: string, isBurnoutMode: boolean): Mission {
+  return pickMissionByDate(dateKey, getMissionPoolByMode(isBurnoutMode))
+}
+
 export function getMissionById(id: string): Mission | undefined {
   return MISSIONS.find((mission) => mission.id === id)
 }
 
-export function getPraiseMessage(totalCompleted: number): string {
+export function getPraiseMessage(totalCompleted: number, useBurnoutTone: boolean = false): string {
+  if (useBurnoutTone) {
+    return BURNOUT_PRAISE_MESSAGE
+  }
+
   const index = Math.max(totalCompleted - 1, 0) % PRAISE_MESSAGES.length
   return PRAISE_MESSAGES[index]
 }

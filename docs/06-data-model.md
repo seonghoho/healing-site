@@ -169,3 +169,4 @@ interface HistoryDay {
 - 동일 날짜에 상이한 `mission_id` 저장 시 `409 MISSION_CONFLICT`
 - 미션 선택은 날짜 키 기반 deterministic 방식
 - 손상 데이터 발견 시 기본 상태로 복구
+- 전환 기간에는 dual-write 후 서버 우선 읽기로 단계 승격
